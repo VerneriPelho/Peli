@@ -10,13 +10,25 @@ def start_new_level():
     level += 1
 
 def show_menu():
-    play_button = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 - 25, 200, 50)
-    pygame.draw.rect(screen, (44, 62, 80), play_button)  
+    title_font = pygame.font.Font(None, 64)
+    title_text = title_font.render("Space Invader", True, (255, 255, 255))
+    title_rect = title_text.get_rect(center=(WIDTH // 2, HEIGHT // 3))
     
-    font_menu = pygame.font.Font(None, 36)
-    play_text = font_menu.render("PLAY", True, (255, 255, 255))
-    text_rect = play_text.get_rect(center=play_button.center)
-    screen.blit(play_text, text_rect)
+    # Blur the background image
+    blurred_background = pygame.transform.smoothscale(background_img, (WIDTH // 4, HEIGHT // 4))
+    blurred_background = pygame.transform.smoothscale(blurred_background, (WIDTH, HEIGHT))
+
+    screen.blit(blurred_background, (0, 0))
+    screen.blit(title_text, title_rect)
+    
+    play_button = pygame.Rect(WIDTH // 2 - 100, HEIGHT * 2 // 3, 200, 50)
+    pygame.draw.rect(screen, (0, 128, 128), play_button)  # Change the button color
+    
+    play_font = pygame.font.Font(None, 36)
+    play_text = play_font.render("PLAY", True, (255, 255, 255))
+    play_rect = play_text.get_rect(center=play_button.center)
+    
+    screen.blit(play_text, play_rect)
 
     pygame.display.flip()
 
@@ -30,14 +42,21 @@ def show_menu():
                     return
 
 def show_loss_screen():
+    pygame.mouse.set_visible(True)  # Show the cursor
     screen.fill((0, 0, 0))
     font = pygame.font.Font(None, 48)
     text = font.render("You Lost", True, (255, 0, 0))
     text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
     screen.blit(text, text_rect)
     
+    # Blur the background image
+    blurred_background = pygame.transform.smoothscale(background_img, (WIDTH // 4, HEIGHT // 4))
+    blurred_background = pygame.transform.smoothscale(blurred_background, (WIDTH, HEIGHT))
+
+    screen.blit(blurred_background, (0, 0))
+    
     play_again_button = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 25, 200, 50)
-    pygame.draw.rect(screen, (44, 62, 80), play_again_button)
+    pygame.draw.rect(screen, (0, 128, 128), play_again_button)  # Change the button color
     play_again_text = font.render("Play Again", True, (255, 255, 255))
     play_again_rect = play_again_text.get_rect(center=play_again_button.center)
     screen.blit(play_again_text, play_again_rect)
@@ -51,11 +70,12 @@ def show_loss_screen():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if play_again_button.collidepoint(event.pos):
+                    pygame.mouse.set_visible(False)  # Hide the cursor
                     return True
 
 pygame.init()
 
-WIDTH, HEIGHT = 350, 600
+WIDTH, HEIGHT = 350, 600  # Set the desired screen size
 FPS = 60
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -63,9 +83,7 @@ RED = (255, 0, 0)
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Spaceship Shooting Game")
 
-background_img = pygame.image.load("bg.png") 
-background_img = pygame.transform.scale(background_img, (350, 600))
-
+background_img = pygame.image.load("bg.png").convert_alpha()
 player_img = pygame.image.load("player.png")
 player_img = pygame.transform.scale(player_img, (50, 50))
 enemy_img = pygame.image.load("enemy.png")
@@ -96,21 +114,20 @@ pygame.mixer.music.play(-1)
 
 show_menu()
 
+pygame.mouse.set_visible(False)  # Hide the cursor initially
+
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
 
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_a] and player.left > 0:
-        player.x -= 5
-    if keys[pygame.K_d] and player.right < WIDTH:
-        player.x += 5
-    if keys[pygame.K_w] and player.top > 0:
-        player.y -= 5
-    if keys[pygame.K_s] and player.bottom < HEIGHT:
-        player.y += 5
+    # Get mouse position
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+
+    # Move player towards the mouse
+    player.centerx = mouse_x
+    player.centery = mouse_y
 
     if shoot_counter == 0:
         player_bullet = pygame.Rect(player.centerx - 5, player.top, 10, 30)
