@@ -1,20 +1,20 @@
 import pygame
 import sys
 import random
-
+# spawnaa vihollinen
 def spawn_enemy():
     return pygame.Rect(random.randint(0, WIDTH - 50), random.randint(-50, 0), 50, 50)
 
 def start_new_level():
-    global level
+    global level, spawn_interval
     level += 1
+    spawn_interval -= 5  # nopeuttaa spawn intervallia että peli vaikenee
 
 def show_menu():
     title_font = pygame.font.Font(None, 64)
     title_text = title_font.render("Space Invader", True, (255, 255, 255))
     title_rect = title_text.get_rect(center=(WIDTH // 2, HEIGHT // 3))
     
-    # Blur the background image
     blurred_background = pygame.transform.smoothscale(background_img, (WIDTH // 4, HEIGHT // 4))
     blurred_background = pygame.transform.smoothscale(blurred_background, (WIDTH, HEIGHT))
 
@@ -22,7 +22,7 @@ def show_menu():
     screen.blit(title_text, title_rect)
     
     play_button = pygame.Rect(WIDTH // 2 - 100, HEIGHT * 2 // 3, 200, 50)
-    pygame.draw.rect(screen, (0, 128, 128), play_button)  # Change the button color
+    pygame.draw.rect(screen, (0, 128, 128), play_button)  # muuta painikkeen väriä
     
     play_font = pygame.font.Font(None, 36)
     play_text = play_font.render("PLAY", True, (255, 255, 255))
@@ -42,21 +42,21 @@ def show_menu():
                     return
 
 def show_loss_screen():
-    pygame.mouse.set_visible(True)  # Show the cursor
+    pygame.mouse.set_visible(True)  # näytä cursori
     screen.fill((0, 0, 0))
     font = pygame.font.Font(None, 48)
     text = font.render("You Lost", True, (255, 0, 0))
     text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
     screen.blit(text, text_rect)
     
-    # Blur background image
+    # taustan blurraus aloitus ja lopetus näytössä
     blurred_background = pygame.transform.smoothscale(background_img, (WIDTH // 4, HEIGHT // 4))
     blurred_background = pygame.transform.smoothscale(blurred_background, (WIDTH, HEIGHT))
 
     screen.blit(blurred_background, (0, 0))
     
     play_again_button = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 25, 200, 50)
-    pygame.draw.rect(screen, (0, 128, 128), play_again_button)  # Change the button color
+    pygame.draw.rect(screen, (0, 128, 128), play_again_button)  # muuta näppäimen väriä
     play_again_text = font.render("Play Again", True, (255, 255, 255))
     play_again_rect = play_again_text.get_rect(center=play_again_button.center)
     screen.blit(play_again_text, play_again_rect)
@@ -70,12 +70,12 @@ def show_loss_screen():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if play_again_button.collidepoint(event.pos):
-                    pygame.mouse.set_visible(False)  # Hide the cursor
+                    pygame.mouse.set_visible(False)  # piilota cursori
                     return True
 
 pygame.init()
 
-WIDTH, HEIGHT = 338, 600  # Set the screen size
+WIDTH, HEIGHT = 338, 600  # aseta näytön koko
 FPS = 60
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -101,7 +101,11 @@ class Player:
         win.blit(player_img, self.rect.topleft)
 
     def move(self, x, y):
-        self.rect.move_ip(x, y)
+        
+        if self.rect.left + x >= 0 and self.rect.right + x <= WIDTH:
+            self.rect.move_ip(x, 0)
+        if self.rect.top + y >= 0 and self.rect.bottom + y <= HEIGHT:
+            self.rect.move_ip(0, y)
 
     def shoot(self):
         if self.shoot_delay == 0:
@@ -120,7 +124,7 @@ class Bullet:
 
     def move(self, vel):
         self.rect.y -= vel
-        return self.rect.y > 0  # Return True if bullet is still on screen
+        return self.rect.y > 0
 
 class Enemy:
     def __init__(self, x, y):
@@ -148,16 +152,17 @@ shoot_counter = 0
 spawn_interval = 60  
 spawn_timer = 0
 
+# musiikin lataus ja toistaminen
 pygame.mixer.music.load("backgroundmusic.mp3") 
 pygame.mixer.music.play(-1) 
 
 show_menu()
 
-pygame.mouse.set_visible(False)  # Hide the cursor initially
+pygame.mouse.set_visible(False)  # piilota cursori pelin alkaessa
 
 def handle_shooting():
-    # Check for shooting
-    if pygame.mouse.get_pressed()[0]:  # Check left mouse button
+    
+    if pygame.mouse.get_pressed()[0]:  # ampuninen left mouse buttonilla
         player.shoot()
 
 while True:
@@ -166,17 +171,16 @@ while True:
             pygame.quit()
             sys.exit()
 
-    # Get mouse position
+    # hiiren sijainti
     mouse_x, mouse_y = pygame.mouse.get_pos()
 
-    # Move player towards the mouse
-    player.rect.centerx = mouse_x
-    player.rect.centery = mouse_y
+    # Liikuta pelaajaa hiirellä
+    player.move(mouse_x - player.rect.centerx, mouse_y - player.rect.centery)
 
     handle_shooting()
 
-    # Move bullets
-    bullets = [bullet for bullet in bullets if bullet.move(10)]
+    # luotien liikkuminen
+    bullets = [bullet for bullet in bullets if bullet.move(5)]
 
     spawn_timer += 2
     if spawn_timer >= spawn_interval:
@@ -192,7 +196,9 @@ while True:
             if bullet.rect.colliderect(enemy.rect):
                 bullets.remove(bullet)
                 enemies.remove(enemy)
-                score += 20
+                score += 10
+                if score % 500 == 0:  # scoren kertoimet
+                    start_new_level()  # aloita uusi taso
         if player.rect.colliderect(enemy.rect):  
             if show_loss_screen():  
                 player = Player(WIDTH // 2 - 25, HEIGHT - 70, 50, 50)  
