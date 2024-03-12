@@ -49,7 +49,7 @@ def show_loss_screen():
     text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
     screen.blit(text, text_rect)
     
-    # Blur the background image
+    # Blur background image
     blurred_background = pygame.transform.smoothscale(background_img, (WIDTH // 4, HEIGHT // 4))
     blurred_background = pygame.transform.smoothscale(blurred_background, (WIDTH, HEIGHT))
 
@@ -75,7 +75,7 @@ def show_loss_screen():
 
 pygame.init()
 
-WIDTH, HEIGHT = 350, 600  # Set the desired screen size
+WIDTH, HEIGHT = 338, 600  # Set the screen size
 FPS = 60
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -91,11 +91,50 @@ enemy_img = pygame.transform.scale(enemy_img, (50, 50))
 bullet_img = pygame.image.load("bullet.png")
 bullet_img = pygame.transform.scale(bullet_img, (20, 40))
 
-player = pygame.Rect(WIDTH // 2 - 25, HEIGHT - 70, 50, 50)
+class Player:
+    def __init__(self, x, y, width, height):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.shoot_delay = 0
+        self.shoot_cooldown = 10
 
+    def draw(self, win):
+        win.blit(player_img, self.rect.topleft)
+
+    def move(self, x, y):
+        self.rect.move_ip(x, y)
+
+    def shoot(self):
+        if self.shoot_delay == 0:
+            bullet = Bullet(self.rect.centerx - 5, self.rect.top)
+            bullets.append(bullet)
+            self.shoot_delay = self.shoot_cooldown
+        else:
+            self.shoot_delay -= 1
+
+class Bullet:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, bullet_img.get_width(), bullet_img.get_height())
+
+    def draw(self, win):
+        win.blit(bullet_img, self.rect.topleft)
+
+    def move(self, vel):
+        self.rect.y -= vel
+        return self.rect.y > 0  # Return True if bullet is still on screen
+
+class Enemy:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, enemy_img.get_width(), enemy_img.get_height())
+
+    def draw(self, win):
+        win.blit(enemy_img, self.rect.topleft)
+
+    def move_ip(self, x, y):
+        self.rect.move_ip(x, y)
+
+player = Player(WIDTH // 2 - 25, HEIGHT - 70, 50, 50)
 enemies = []
-player_bullets = []
-enemy_bullets = []
+bullets = []
 
 clock = pygame.time.Clock()
 
@@ -116,6 +155,11 @@ show_menu()
 
 pygame.mouse.set_visible(False)  # Hide the cursor initially
 
+def handle_shooting():
+    # Check for shooting
+    if pygame.mouse.get_pressed()[0]:  # Check left mouse button
+        player.shoot()
+
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -126,50 +170,46 @@ while True:
     mouse_x, mouse_y = pygame.mouse.get_pos()
 
     # Move player towards the mouse
-    player.centerx = mouse_x
-    player.centery = mouse_y
+    player.rect.centerx = mouse_x
+    player.rect.centery = mouse_y
 
-    if shoot_counter == 0:
-        player_bullet = pygame.Rect(player.centerx - 5, player.top, 10, 30)
-        player_bullets.append(player_bullet)
-        shoot_counter = shoot_interval
-    else:
-        shoot_counter -= 1
+    handle_shooting()
 
-    player_bullets = [bullet for bullet in player_bullets if bullet.move_ip(0, -10)]
+    # Move bullets
+    bullets = [bullet for bullet in bullets if bullet.move(10)]
 
-    spawn_timer += 3
+    spawn_timer += 2
     if spawn_timer >= spawn_interval:
-        enemies.append(spawn_enemy())
+        enemies.append(Enemy(*spawn_enemy().topleft))
         spawn_timer = 0
 
     for enemy in enemies[:]:  
         enemy.move_ip(0, 2)
-        if enemy.top > HEIGHT:
+        if enemy.rect.top > HEIGHT:
             enemies.remove(enemy)
             continue
-        for player_bullet in player_bullets[:]:  
-            if player_bullet.colliderect(enemy):
-                player_bullets.remove(player_bullet)
+        for bullet in bullets[:]:  
+            if bullet.rect.colliderect(enemy.rect):
+                bullets.remove(bullet)
                 enemies.remove(enemy)
                 score += 20
-        if player.colliderect(enemy):  
+        if player.rect.colliderect(enemy.rect):  
             if show_loss_screen():  
-                player = pygame.Rect(WIDTH // 2 - 25, HEIGHT - 70, 50, 50)  
+                player = Player(WIDTH // 2 - 25, HEIGHT - 70, 50, 50)  
                 enemies.clear()  
-                player_bullets.clear()  
+                bullets.clear()  
                 score = 0  
                 level = 1  
 
     screen.blit(background_img, (0, 0))
 
-    screen.blit(player_img, player)
-
     for enemy in enemies:
-        screen.blit(enemy_img, enemy)
+        enemy.draw(screen)
 
-    for player_bullet in player_bullets:
-        screen.blit(bullet_img, player_bullet)
+    player.draw(screen)
+
+    for bullet in bullets:
+        bullet.draw(screen)
 
     score_text = font.render(f"Score: {score}  Level: {level}", True, WHITE)
     screen.blit(score_text, (10, 10))
